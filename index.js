@@ -60,24 +60,10 @@ async function run() {
       res.send({ token });
     })
 
-    // user api
-    app.post('/users', async (req, res) => {
-      const body = req.body;
-      console.log(body.user_email, 1);
-      const query = { email: body.user_email };
-      const existingUser = await usersCollection.findOne(query);
-      console.log(existingUser);
-      if (existingUser) {
-        return res.status(408).send({ error: true, message: 'User already exist' });
-      }
-      const result = await usersCollection.insertOne(body);
-      res.send(result);
-    })
-
     //check admin / instructor function
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
-      const query = { email: email }
+      const query = { user_email: email }
       const user = await usersCollection.findOne(query);
       if (user?.role !== 'admin') {
         return res.status(403).send({ error: true, message: 'Forbidden Access' });
@@ -86,7 +72,7 @@ async function run() {
     }
     const verifyInstructor = async (req, res, next) => {
       const email = req.decoded.email;
-      const query = { email: email }
+      const query = { user_email: email }
       const user = await usersCollection.findOne(query);
       if (user?.role !== 'instructor') {
         return res.status(403).send({ error: true, message: 'Forbidden Access' });
@@ -94,6 +80,35 @@ async function run() {
       next();
     }
 
+    // user api
+    app.get('/user/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const query = { user_email: email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    })
+
+    app.post('/user', async (req, res) => {
+      const body = req.body;
+      const query = { user_email: body.user_email };
+      const existingUser = await usersCollection.findOne(query);
+      if (existingUser) {
+        return res.status(408).send({ error: true, message: 'User already exist' });
+      }
+      const result = await usersCollection.insertOne(body);
+      res.send(result);
+    })
+
+    app.patch('/user', async (req, res) => {
+      const id = req.query.email;
+      const role = req.query.role;
+      console.log(id, role);
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
