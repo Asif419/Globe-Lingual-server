@@ -60,11 +60,38 @@ async function run() {
       res.send({ token });
     })
 
-    //check admin function
+    // user api
+    app.post('/users', async (req, res) => {
+      const body = req.body;
+      console.log(body.user_email, 1);
+      const query = { email: body.user_email };
+      const existingUser = await usersCollection.findOne(query);
+      console.log(existingUser);
+      if (existingUser) {
+        return res.status(408).send({ error: true, message: 'User already exist' });
+      }
+      const result = await usersCollection.insertOne(body);
+      res.send(result);
+    })
+
+    //check admin / instructor function
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
       const query = { email: email }
       const user = await usersCollection.findOne(query);
+      if (user?.role !== 'admin') {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' });
+      }
+      next();
+    }
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email }
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== 'instructor') {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' });
+      }
+      next();
     }
 
 
