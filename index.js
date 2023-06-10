@@ -51,6 +51,7 @@ async function run() {
     // db connection
     const usersCollection = client.db("globe_lingual").collection("users");
     const classesCollection = client.db("globe_lingual").collection("classes");
+    const userClassesCollection = client.db("globe_lingual").collection("userClasses");
 
     // routes
 
@@ -81,11 +82,20 @@ async function run() {
       next();
     }
 
+
+
     // user api
     app.get('/user/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
       const query = { user_email: email };
       const result = await usersCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.get('/user-classes/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const query = { user_id: id };
+      const result = await userClassesCollection.findOne(query);
       res.send(result);
     })
 
@@ -114,6 +124,50 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/classes', async (req, res) => {
+      // const query = { class_status: { $eq: 'approved' } };
+      const result = await classesCollection.find().toArray();
+      res.send(result);
+    })
+
+    app.get('/user-classes/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const query = { user_id: id };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.get('/selected-class-from-array/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await classesCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.post('/selected-class', verifyJWT, async (req, res) => {
+      const { userId, new_class_id } = req.body;
+      const query = { user_id: userId };
+      const existingUser = await userClassesCollection.findOne(query);
+      console.log(existingUser);
+      if (existingUser) {
+        const updateDoc = {
+          $push: {
+            selected_classes_id: new_class_id,
+          }
+        }
+        const result = await userClassesCollection.updateOne(query, updateDoc);
+        res.send(result);
+      }
+      else {
+        const body = {
+          user_id: userId,
+          selected_classes_id: [new_class_id]
+        };
+        const result = await userClassesCollection.insertOne(body);
+        res.send(result);
+      }
+    })
+
     //instructor api
     app.post('/add-class', verifyJWT, verifyInstructor, async (req, res) => {
       const body = req.body;
@@ -134,17 +188,16 @@ async function run() {
       res.send(result);
     })
 
-    app.get('/classes', verifyJWT, verifyAdmin, async (req, res) => {
+    app.get('/admin-classes', verifyJWT, verifyAdmin, async (req, res) => {
       const result = await classesCollection.find().toArray();
       res.send(result);
     })
 
-    app.patch('/class', async (req, res) => {
+    app.patch('/class', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.query.id;
-      console.log(req.body);
       const { status, review } = req.body;
       const filter = { _id: new ObjectId(id) }
-      const targetedClass = await classesCollection.findOne(filter);
+      // const targetedClass = await classesCollection.findOne(filter);
       const updateDoc = {
         $set: {
           class_status: `${status}`,
@@ -154,6 +207,21 @@ async function run() {
       const result = await classesCollection.updateOne(filter, updateDoc);
       res.send(result);
     })
+
+    app.patch('/edit-review', verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.query.id;
+      const { newReview } = req.body;
+      const filter = { _id: new ObjectId(id) }
+      const targetedClass = await classesCollection.findOne(filter);
+      const updateDoc = {
+        $set: {
+          admin_review: `${newReview}`
+        },
+      }
+      const result = await classesCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
