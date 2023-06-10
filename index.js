@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
@@ -52,6 +53,7 @@ async function run() {
     const usersCollection = client.db("globe_lingual").collection("users");
     const classesCollection = client.db("globe_lingual").collection("classes");
     const selectedClassesCollection = client.db("globe_lingual").collection("selectedClasses");
+    const paymentCollection = client.db("globe_lingual").collection("payment");
 
     // routes
 
@@ -81,8 +83,6 @@ async function run() {
       }
       next();
     }
-
-
 
     // user api
     app.get('/user/:email', verifyJWT, async (req, res) => {
@@ -146,7 +146,7 @@ async function run() {
     })
 
     app.delete('/delete-class-from-array/:id', verifyJWT, async (req, res) => {
-      const result = await selectedClassesCollection.deleteOne({_id: new ObjectId(req.params.id)});
+      const result = await selectedClassesCollection.deleteOne({ _id: new ObjectId(req.params.id) });
       res.send(result);
     })
 
@@ -158,6 +158,8 @@ async function run() {
       const result = await selectedClassesCollection.insertOne(body);
       res.send(result);
     })
+
+    
 
     //instructor api
     app.post('/add-class', verifyJWT, verifyInstructor, async (req, res) => {
@@ -213,6 +215,32 @@ async function run() {
       res.send(result);
     })
 
+    //payment
+    app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      if (amount < 1) {
+        return res.status(400).send({ error: true, message: 'Invalid price value' });
+      }
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    })
+
+    app.post('/payments', verifyJWT, async (req, res) => {
+      const payment = req.body;
+      console.log(payment);
+      const insertResult = await paymentCollection.insertOne(payment);
+      const query = {_id : new ObjectId(payment.classId)}
+      const deleteResult = await selectedClassesCollection.deleteOne(query);
+
+      res.send({ result: insertResult, deleteResult });
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -223,10 +251,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
-
-
-
 
 // basic api
 
