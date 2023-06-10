@@ -51,7 +51,7 @@ async function run() {
     // db connection
     const usersCollection = client.db("globe_lingual").collection("users");
     const classesCollection = client.db("globe_lingual").collection("classes");
-    const userClassesCollection = client.db("globe_lingual").collection("userClasses");
+    const selectedClassesCollection = client.db("globe_lingual").collection("selectedClasses");
 
     // routes
 
@@ -95,7 +95,7 @@ async function run() {
     app.get('/user-classes/:id', verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { user_id: id };
-      const result = await userClassesCollection.findOne(query);
+      const result = await selectedClassesCollection.find(query).toArray();
       res.send(result);
     })
 
@@ -125,6 +125,7 @@ async function run() {
     })
 
     app.get('/classes', async (req, res) => {
+      //TODO: remove comment on query
       // const query = { class_status: { $eq: 'approved' } };
       const result = await classesCollection.find().toArray();
       res.send(result);
@@ -137,35 +138,25 @@ async function run() {
       res.send(result);
     })
 
-    app.get('/selected-class-from-array/:id', verifyJWT, async (req, res) => {
+    app.get('/selected-class-user/:id', verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await classesCollection.findOne(query);
       res.send(result);
     })
 
+    app.delete('/delete-class-from-array/:id', verifyJWT, async (req, res) => {
+      const result = await selectedClassesCollection.deleteOne({_id: new ObjectId(req.params.id)});
+      res.send(result);
+    })
+
     app.post('/selected-class', verifyJWT, async (req, res) => {
-      const { userId, new_class_id } = req.body;
-      const query = { user_id: userId };
-      const existingUser = await userClassesCollection.findOne(query);
-      console.log(existingUser);
-      if (existingUser) {
-        const updateDoc = {
-          $push: {
-            selected_classes_id: new_class_id,
-          }
-        }
-        const result = await userClassesCollection.updateOne(query, updateDoc);
-        res.send(result);
-      }
-      else {
-        const body = {
-          user_id: userId,
-          selected_classes_id: [new_class_id]
-        };
-        const result = await userClassesCollection.insertOne(body);
-        res.send(result);
-      }
+      const body = {
+        user_id: req.body.userId,
+        selected_classes_id: req.body.new_class_id
+      };
+      const result = await selectedClassesCollection.insertOne(body);
+      res.send(result);
     })
 
     //instructor api
