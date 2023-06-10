@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -50,6 +50,7 @@ async function run() {
 
     // db connection
     const usersCollection = client.db("globe_lingual").collection("users");
+    const classesCollection = client.db("globe_lingual").collection("classes");
 
     // routes
 
@@ -88,11 +89,6 @@ async function run() {
       res.send(result);
     })
 
-    app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
-      const result = await usersCollection.find().toArray();
-      res.send(result);
-    })
-
     app.post('/user', async (req, res) => {
       const body = req.body;
       const query = { user_email: body.user_email };
@@ -105,9 +101,58 @@ async function run() {
     })
 
     app.patch('/user', async (req, res) => {
-      const id = req.query.email;
-      const role = req.query.role;
-      console.log(id, role);
+      const id = req.query.id;
+      const role = req.body.role;
+      const filter = { _id: new ObjectId(id) }
+      const targetedUser = await usersCollection.findOne(filter);
+      const updateDoc = {
+        $set: {
+          role: `${role}`,
+        },
+      }
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
+    //instructor api
+    app.post('/add-class', verifyJWT, verifyInstructor, async (req, res) => {
+      const body = req.body;
+      const result = await classesCollection.insertOne(body);
+      res.send(result);
+    })
+
+    app.get('/instructor-classes/:email', verifyJWT, verifyInstructor, async (req, res) => {
+      const email = req.params.email;
+      const query = { instructor_email: email };
+      const result = await classesCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    //admin api
+    app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    })
+
+    app.get('/classes', verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await classesCollection.find().toArray();
+      res.send(result);
+    })
+
+    app.patch('/class', async (req, res) => {
+      const id = req.query.id;
+      console.log(req.body);
+      const { status, review } = req.body;
+      const filter = { _id: new ObjectId(id) }
+      const targetedClass = await classesCollection.findOne(filter);
+      const updateDoc = {
+        $set: {
+          class_status: `${status}`,
+          admin_review: `${review}`
+        },
+      }
+      const result = await classesCollection.updateOne(filter, updateDoc);
+      res.send(result);
     })
 
     // Send a ping to confirm a successful connection
