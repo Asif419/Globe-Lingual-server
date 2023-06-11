@@ -159,7 +159,7 @@ async function run() {
       res.send(result);
     })
 
-    
+
 
     //instructor api
     app.post('/add-class', verifyJWT, verifyInstructor, async (req, res) => {
@@ -236,9 +236,17 @@ async function run() {
       const payment = req.body;
       console.log(payment);
       const insertResult = await paymentCollection.insertOne(payment);
-      const query = {_id : new ObjectId(payment.classId)}
-      const deleteResult = await selectedClassesCollection.deleteOne(query);
 
+      const filter = {_id: new ObjectId(payment.selected_class_id)};
+      const update = {
+        $inc: {
+          enrolled_students: 1
+        }
+      };
+      const addingResult = await classesCollection.updateOne(filter, update);
+      
+      const query = {_id : new ObjectId(payment.class_id)}
+      const deleteResult = await selectedClassesCollection.deleteOne(query);
       res.send({ result: insertResult, deleteResult });
     })
 
