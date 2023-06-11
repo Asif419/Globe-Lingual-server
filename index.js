@@ -138,6 +138,11 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/popular-classes', async (req, res) => {
+      const result = await classesCollection.find().sort({'enrolled_students': -1}).limit(6).toArray();
+      res.send(result);
+    })
+
     app.get('/selected-class-user/:id', verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -201,6 +206,7 @@ async function run() {
     })
 
     app.get('/payment/:id', verifyJWT, async (req, res) => {
+      // match class id in class collection and selected class id in payment collection
       const user_id = req.params.id;
       const pipeline = [
         {
@@ -236,6 +242,8 @@ async function run() {
           }
         }
       ];
+
+      //sort date wise and send required data
       const result = await paymentCollection.aggregate(pipeline).toArray();
       console.log(result);
       res.send(result);
@@ -321,10 +329,11 @@ async function run() {
 
     app.post('/payments', verifyJWT, async (req, res) => {
       const payment = req.body;
-      console.log(payment);
       payment.selected_class_id = new ObjectId(payment.selected_class_id);
+      //insert data in payment
       const insertResult = await paymentCollection.insertOne(payment);
 
+      // find with class id in class collection and update enrolled student
       const filter = { _id: new ObjectId(payment.selected_class_id) };
       const update = {
         $inc: {
@@ -333,8 +342,10 @@ async function run() {
       };
       const addingResult = await classesCollection.updateOne(filter, update);
 
+      // delete data from selected collection
       const query = { _id: new ObjectId(payment.class_id) }
       const deleteResult = await selectedClassesCollection.deleteOne(query);
+
       res.send({ result: insertResult, deleteResult });
     })
 
