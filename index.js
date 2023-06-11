@@ -255,6 +255,12 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/popular-instructors', async (req, res) => {
+      const query = { role: 'instructor' };
+      const result = await usersCollection.find(query).limit(6).toArray();
+      res.send(result);
+    })
+
 
     //instructor api
     app.post('/add-class', verifyJWT, verifyInstructor, async (req, res) => {
