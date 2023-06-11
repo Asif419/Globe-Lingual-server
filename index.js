@@ -124,17 +124,17 @@ async function run() {
       res.send(result);
     })
 
-    app.get('/classes', async (req, res) => {
-      //TODO: remove comment on query
-      // const query = { class_status: { $eq: 'approved' } };
-      const result = await classesCollection.find().toArray();
-      res.send(result);
-    })
-
     app.get('/user-classes/:id', verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { user_id: id };
       const result = await usersCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.get('/classes', async (req, res) => {
+      //TODO: remove comment on query
+      // const query = { class_status: { $eq: 'approved' } };
+      const result = await classesCollection.find().toArray();
       res.send(result);
     })
 
@@ -159,6 +159,51 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/enrolled-classes/:id', verifyJWT, async (req, res) => {
+      const user_id = req.params.id;
+      // console.log(id);
+      // const query = {user_id: id};
+      // const searchResult = await paymentCollection.find(query).toArray();
+      // console.log(searchResult);
+
+      const pipeline = [
+        {
+          $match: {
+            user_id: user_id
+          }
+        },
+        {
+          $lookup: {
+            from: 'classes',
+            localField: 'selected_class_id',
+            foreignField: '_id',
+            as: 'matchedClasses'
+          }
+        },
+        {
+          $unwind: '$matchedClasses'
+        },
+        {
+          $project: {
+            _id: '$matchedClasses._id',
+            instructor_email: '$matchedClasses.instructor_email',
+            instructor_id: '$matchedClasses.instructor_id',
+            instructor_name: '$matchedClasses.instructor_name',
+            class_name: '$matchedClasses.class_name',
+            class_photo_url: '$matchedClasses.class_photo_url',
+            class_price: '$matchedClasses.class_price',
+            total_seats: '$matchedClasses.total_seats',
+            enrolled_students: '$matchedClasses.enrolled_students',
+            class_status: '$matchedClasses.class_status',
+            class_details: '$matchedClasses.class_details',
+            admin_review: '$matchedClasses.admin_review'
+          }
+        }
+      ];
+      console.log(pipeline);
+      const result = await paymentCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    })
 
 
     //instructor api
@@ -235,17 +280,18 @@ async function run() {
     app.post('/payments', verifyJWT, async (req, res) => {
       const payment = req.body;
       console.log(payment);
+      payment.selected_class_id = new ObjectId (payment.selected_class_id);
       const insertResult = await paymentCollection.insertOne(payment);
 
-      const filter = {_id: new ObjectId(payment.selected_class_id)};
+      const filter = { _id: new ObjectId(payment.selected_class_id) };
       const update = {
         $inc: {
           enrolled_students: 1
         }
       };
       const addingResult = await classesCollection.updateOne(filter, update);
-      
-      const query = {_id : new ObjectId(payment.class_id)}
+
+      const query = { _id: new ObjectId(payment.class_id) }
       const deleteResult = await selectedClassesCollection.deleteOne(query);
       res.send({ result: insertResult, deleteResult });
     })
