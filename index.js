@@ -161,11 +161,6 @@ async function run() {
 
     app.get('/enrolled-classes/:id', verifyJWT, async (req, res) => {
       const user_id = req.params.id;
-      // console.log(id);
-      // const query = {user_id: id};
-      // const searchResult = await paymentCollection.find(query).toArray();
-      // console.log(searchResult);
-
       const pipeline = [
         {
           $match: {
@@ -200,8 +195,55 @@ async function run() {
           }
         }
       ];
-      console.log(pipeline);
       const result = await paymentCollection.aggregate(pipeline).toArray();
+      console.log(result);
+      res.send(result);
+    })
+
+    app.get('/payment/:id', verifyJWT, async (req, res) => {
+      const user_id = req.params.id;
+      const pipeline = [
+        {
+          $match: {
+            user_id: user_id
+          }
+        },
+        {
+          $lookup: {
+            from: 'classes',
+            localField: 'selected_class_id',
+            foreignField: '_id',
+            as: 'matchedClasses'
+          }
+        },
+        {
+          $unwind: '$matchedClasses'
+        },
+        {
+          $project: {
+            _id: '$matchedClasses._id',
+            instructor_name: '$matchedClasses.instructor_name',
+            class_name: '$matchedClasses.class_name',
+            class_photo_url: '$matchedClasses.class_photo_url',
+            class_price: '$matchedClasses.class_price',
+            transaction_id: '$transaction_id',
+            date: '$date'
+          }
+        },
+        {
+          $sort: {
+            date: -1
+          }
+        }
+      ];
+      const result = await paymentCollection.aggregate(pipeline).toArray();
+      console.log(result);
+      res.send(result);
+    })
+
+    app.get('/instructors', async (req, res) => {
+      const query = { role: 'instructor' };
+      const result = await usersCollection.find(query).toArray();
       res.send(result);
     })
 
@@ -280,7 +322,7 @@ async function run() {
     app.post('/payments', verifyJWT, async (req, res) => {
       const payment = req.body;
       console.log(payment);
-      payment.selected_class_id = new ObjectId (payment.selected_class_id);
+      payment.selected_class_id = new ObjectId(payment.selected_class_id);
       const insertResult = await paymentCollection.insertOne(payment);
 
       const filter = { _id: new ObjectId(payment.selected_class_id) };
