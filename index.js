@@ -132,14 +132,14 @@ async function run() {
     })
 
     app.get('/classes', async (req, res) => {
-      //TODO: remove comment on query
-      // const query = { class_status: { $eq: 'approved' } };
-      const result = await classesCollection.find().toArray();
+      const query = { class_status: 'approved' };
+      const result = await classesCollection.find(query).toArray();
       res.send(result);
     })
 
     app.get('/popular-classes', async (req, res) => {
-      const result = await classesCollection.find().sort({'enrolled_students': -1}).limit(6).toArray();
+      const query = { class_status: 'approved' };
+      const result = await classesCollection.find(query).sort({ 'enrolled_students': -1 }).limit(6).toArray();
       res.send(result);
     })
 
