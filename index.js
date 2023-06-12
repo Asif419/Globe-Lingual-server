@@ -201,7 +201,6 @@ async function run() {
         }
       ];
       const result = await paymentCollection.aggregate(pipeline).toArray();
-      console.log(result);
       res.send(result);
     })
 
@@ -245,7 +244,6 @@ async function run() {
 
       //sort date wise and send required data
       const result = await paymentCollection.aggregate(pipeline).toArray();
-      console.log(result);
       res.send(result);
     })
 
