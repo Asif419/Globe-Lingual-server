@@ -282,7 +282,7 @@ async function run() {
 
     app.get('/admin-classes', verifyJWT, verifyAdmin, async (req, res) => {
       const result = await classesCollection.find().toArray();
-      res.send(result);
+      res.send(result.reverse());
     })
 
     app.patch('/class', verifyJWT, verifyAdmin, async (req, res) => {
